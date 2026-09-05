@@ -1,0 +1,68 @@
+name: Deploy India F&O Catalyst Monitor
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract application ZIP
+        run: |
+          set -e
+          rm -rf _site
+          mkdir -p _site
+
+          unzip -q "India-FNO-Catalyst-Monitor-V730000.zip" -d _site
+
+          # Flatten a single top-level directory if present
+          shopt -s dotglob
+          dirs=(_site/*)
+
+          if [ "${#dirs[@]}" -eq 1 ] && [ -d "${dirs[0]}" ]; then
+            mkdir _site_flat
+            cp -a "${dirs[0]}"/. _site_flat/
+            rm -rf _site
+            mv _site_flat _site
+          fi
+
+          touch _site/.nojekyll
+
+          echo "Checking application..."
+          test -f _site/index.html
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
